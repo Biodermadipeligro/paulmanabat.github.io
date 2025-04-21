@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Group Chat</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      height: 100vh;
+      background: url('dragon.jpg') no-repeat center center fixed;
+      background-size: cover;
+      position: relative;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 0;
+    }
+
+    .login-container,
+    .chat-container {
+      position: absolute;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .login-box {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .login-box input {
+      padding: 10px;
+      font-size: 18px;
+      width: 250px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .login-box button {
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #0084ff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .chat-box {
+      width: 90%;
+      max-width: 1200px;
+      height: 90%;
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+      color: black;
+    }
+
+    .chat-header {
+      background-color: yellow;
+      color: black;
+      padding: 15px;
+      font-size: 24px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hamburger {
+      position: absolute;
+      left: 15px;
+      top: 15px;
+      cursor: pointer;
+    }
+
+    .hamburger div {
+      width: 25px;
+      height: 3px;
+      background-color: black;
+      margin: 5px 0;
+      transition: all 0.3s ease;
+    }
+
+    .hamburger.active div:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+
+    .hamburger.active div:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger.active div:nth-child(3) {
+      transform: rotate(-45deg) translate(6px, -6px);
+    }
+
+    .home-icon {
+      position: absolute;
+      right: 15px;
+      top: 15px;
+      text-decoration: none;
+    }
+
+    #onlineUsers {
+      position: absolute;
+      top: 0;
+      right: -300px;
+      width: 250px;
+      height: 100%;
+      background: white;
+      padding: 20px;
+      box-shadow: -3px 0 5px rgba(0, 0, 0, 0.3);
+      transition: right 0.3s;
+      z-index: 2;
+    }
+
+    #onlineUsers.active {
+      right: 0;
+    }
+
+    #chatBox {
+      flex: 1;
+      overflow-y: scroll;
+      padding: 20px;
+      background: #000;
+    }
+
+    .message {
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      background-color: #222;
+      color: white;
+      max-width: 60%;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .message .sender {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .input-container {
+      display: flex;
+      padding: 15px;
+      border-top: 2px solid white;
+      background-color: #000;
+    }
+
+    .input-container input {
+      flex: 1;
+      padding: 10px;
+      font-size: 18px;
+      border: 1px solid #555;
+      border-radius: 10px;
+      background-color: #222;
+      color: white;
+    }
+
+    .input-container button {
+      margin-left: 10px;
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: yellow;
+      color: black;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay"></div>
+
+  <div class="login-container" id="loginContainer">
+    <div class="login-box">
+      <h2>Enter your name to join</h2>
+      <input type="text" id="usernameInput" placeholder="Your name" />
+      <br>
+      <button onclick="login()">Continue</button>
+    </div>
+  </div>
+
+  <div class="chat-container" id="chatContainer" style="display: none;">
+    <div class="chat-box">
+      <div class="chat-header">
+        <div class="hamburger" onclick="toggleUsers()" id="hamburgerIcon">
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        Group Chat
+        <a href="https://your-home-url.com" class="home-icon" target="_blank">
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="black" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+          </svg>
+        </a>
+      </div>
+      <div id="onlineUsers"></div>
+      <div id="chatBox"></div>
+      <div class="input-container">
+        <input type="text" id="messageInput" placeholder="Type a message..." oninput="setTypingStatus(true)" onblur="setTypingStatus(false)" />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBcoIMgMewb-v70Pq0mml-U5AePUTCym5A",
+      authDomain: "chatpage-d8bb3.firebaseapp.com",
+      projectId: "chatpage-d8bb3",
+      storageBucket: "chatpage-d8bb3.appspot.com",
+      messagingSenderId: "276378158068",
+      appId: "1:276378158068:web:b01b93b0a4aa46044befa1"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentUser = null;
+
+    window.onload = function () {
+      const savedUser = localStorage.getItem("username");
+      if (savedUser) {
+        currentUser = savedUser;
+        document.getElementById("loginContainer").style.display = "none";
+        document.getElementById("chatContainer").style.display = "flex";
+        db.ref("users/" + currentUser).set({ username: currentUser, online: true });
+      }
+    }
+
+    function login() {
+      const username = document.getElementById("usernameInput").value.trim();
+      if (username) {
+        currentUser = username;
+        localStorage.setItem("username", username);
+        document.getElementById("loginContainer").style.display = "none";
+        document.getElementById("chatContainer").style.display = "flex";
+        db.ref("users/" + currentUser).set({ username: currentUser, online: true });
+      }
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const message = input.value.trim();
+      if (message) {
+        db.ref("messages").push().set({
+          sender: currentUser,
+          message: message,
+          timestamp: Date.now()
+        });
+        input.value = '';
+        setTypingStatus(false);
+      }
+    }
+
+    db.ref("messages").on("child_added", snapshot => {
+      const data = snapshot.val();
+      const chatBox = document.getElementById("chatBox");
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.innerHTML = `<span class="sender">${data.sender}</span>${data.message}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    function toggleUsers() {
+      const usersPanel = document.getElementById("onlineUsers");
+      const hamburger = document.getElementById("hamburgerIcon");
+      usersPanel.classList.toggle("active");
+      hamburger.classList.toggle("active");
+    }
+
+    function setTypingStatus(isTyping) {
+      db.ref("typing/" + currentUser).set(isTyping ? true : null);
+    }
+
+    db.ref("users").on("value", snapshot => {
+      const data = snapshot.val();
+      const container = document.getElementById("onlineUsers");
+      container.innerHTML = "<h3>Online Users</h3>";
+      for (let uid in data) {
+        const user = data[uid];
+        if (user.online) {
+          const div = document.createElement("div");
+          div.textContent = user.username;
+          container.appendChild(div);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
